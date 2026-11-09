@@ -1,0 +1,412 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model assignments {
+  id          BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
+  guard_id    BigInt              @db.UnsignedBigInt
+  site_id     BigInt              @db.UnsignedBigInt
+  shift_id    BigInt              @db.UnsignedBigInt
+  assigned_by BigInt              @db.UnsignedBigInt
+  start_date  DateTime            @db.Date
+  end_date    DateTime?           @db.Date
+  status      assignments_status? @default(ACTIVE)
+  created_at  DateTime?           @default(now()) @db.Timestamp(0)
+  guards      guards              @relation(fields: [guard_id], references: [id], onUpdate: NoAction, map: "assignments_ibfk_1")
+  sites       sites               @relation(fields: [site_id], references: [id], onUpdate: NoAction, map: "assignments_ibfk_2")
+  shifts      shifts              @relation(fields: [shift_id], references: [id], onUpdate: NoAction, map: "assignments_ibfk_3")
+  users       users               @relation(fields: [assigned_by], references: [id], onUpdate: NoAction, map: "assignments_ibfk_4")
+  attendance  attendance[]
+
+  @@index([assigned_by], map: "assigned_by")
+  @@index([guard_id], map: "guard_id")
+  @@index([shift_id], map: "shift_id")
+  @@index([site_id], map: "site_id")
+}
+
+model attendance {
+  id              BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
+  assignment_id   BigInt             @db.UnsignedBigInt
+  guard_id        BigInt             @db.UnsignedBigInt
+  site_id         BigInt             @db.UnsignedBigInt
+  attendance_date DateTime           @db.Date
+  check_in        DateTime?          @db.DateTime(0)
+  check_out       DateTime?          @db.DateTime(0)
+  status          attendance_status? @default(PRESENT)
+  verified_by     BigInt?            @db.UnsignedBigInt
+  created_at      DateTime?          @default(now()) @db.Timestamp(0)
+  assignments     assignments        @relation(fields: [assignment_id], references: [id], onUpdate: NoAction, map: "attendance_ibfk_1")
+  guards          guards             @relation(fields: [guard_id], references: [id], onUpdate: NoAction, map: "attendance_ibfk_2")
+  sites           sites              @relation(fields: [site_id], references: [id], onUpdate: NoAction, map: "attendance_ibfk_3")
+  supervisors     supervisors?       @relation(fields: [verified_by], references: [id], onUpdate: NoAction, map: "attendance_ibfk_4")
+
+  @@unique([assignment_id, attendance_date], map: "unique_assignment_attendance")
+  @@index([guard_id], map: "guard_id")
+  @@index([site_id], map: "site_id")
+  @@index([verified_by], map: "verified_by")
+}
+
+model audit_logs {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id     BigInt?   @db.UnsignedBigInt
+  action      String    @db.VarChar(100)
+  entity_type String?   @db.VarChar(100)
+  entity_id   BigInt?   @db.UnsignedBigInt
+  details     Json?
+  created_at  DateTime? @default(now()) @db.Timestamp(0)
+  users       users?    @relation(fields: [user_id], references: [id], onUpdate: NoAction, map: "audit_logs_ibfk_1")
+
+  @@index([user_id], map: "user_id")
+}
+
+model clients {
+  id              BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id         BigInt          @unique(map: "user_id") @db.UnsignedBigInt
+  company_name    String          @db.VarChar(150)
+  contact_person  String?         @db.VarChar(100)
+  company_email   String?         @db.VarChar(150)
+  phone           String?         @db.VarChar(15)
+  billing_address String?         @db.Text
+  gstin           String?         @db.VarChar(20)
+  status          clients_status? @default(ACTIVE)
+  users           users           @relation(fields: [user_id], references: [id], onUpdate: NoAction, map: "clients_ibfk_1")
+  invoices        invoices[]
+  sites           sites[]
+}
+
+model documents {
+  id                  BigInt                         @id @default(autoincrement()) @db.UnsignedBigInt
+  guard_id            BigInt                         @db.UnsignedBigInt
+  document_type       String                         @db.VarChar(50)
+  file_url            String                         @db.VarChar(500)
+  verification_status documents_verification_status? @default(PENDING)
+  uploaded_at         DateTime?                      @default(now()) @db.Timestamp(0)
+  guards              guards                         @relation(fields: [guard_id], references: [id], onUpdate: NoAction, map: "documents_ibfk_1")
+
+  @@index([guard_id], map: "guard_id")
+}
+
+model guards {
+  id                BigInt                    @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id           BigInt                    @unique(map: "user_id") @db.UnsignedBigInt
+  employee_code     String                    @unique(map: "employee_code") @db.VarChar(30)
+  date_of_birth     DateTime?                 @db.Date
+  gender            String?                   @db.VarChar(20)
+  address           String?                   @db.Text
+  joining_date      DateTime                  @db.Date
+  qualification     String?                   @db.VarChar(150)
+  experience_years  Decimal?                  @default(0.0) @db.Decimal(4, 1)
+  emergency_contact String?                   @db.VarChar(15)
+  base_salary       Decimal                   @db.Decimal(12, 2)
+  employment_status guards_employment_status? @default(ACTIVE)
+  created_at        DateTime?                 @default(now()) @db.Timestamp(0)
+  assignments       assignments[]
+  attendance        attendance[]
+  documents         documents[]
+  users             users                     @relation(fields: [user_id], references: [id], onUpdate: NoAction, map: "guards_ibfk_1")
+  leaves            leaves[]
+  salaries          salaries[]
+}
+
+model incidents {
+  id             BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
+  site_id        BigInt              @db.UnsignedBigInt
+  reported_by    BigInt              @db.UnsignedBigInt
+  incident_title String              @db.VarChar(150)
+  description    String              @db.Text
+  severity       incidents_severity? @default(LOW)
+  status         incidents_status?   @default(OPEN)
+  incident_time  DateTime            @db.DateTime(0)
+  created_at     DateTime?           @default(now()) @db.Timestamp(0)
+  sites          sites               @relation(fields: [site_id], references: [id], onUpdate: NoAction, map: "incidents_ibfk_1")
+  users          users               @relation(fields: [reported_by], references: [id], onUpdate: NoAction, map: "incidents_ibfk_2")
+
+  @@index([reported_by], map: "reported_by")
+  @@index([site_id], map: "site_id")
+}
+
+model invoice_items {
+  id          BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  invoice_id  BigInt   @db.UnsignedBigInt
+  description String   @db.VarChar(255)
+  quantity    Int      @db.UnsignedInt
+  unit_price  Decimal  @db.Decimal(12, 2)
+  amount      Decimal  @db.Decimal(12, 2)
+  invoices    invoices @relation(fields: [invoice_id], references: [id], onUpdate: NoAction, map: "invoice_items_ibfk_1")
+
+  @@index([invoice_id], map: "invoice_id")
+}
+
+model invoices {
+  id             BigInt           @id @default(autoincrement()) @db.UnsignedBigInt
+  client_id      BigInt           @db.UnsignedBigInt
+  invoice_number String           @unique(map: "invoice_number") @db.VarChar(50)
+  issue_date     DateTime         @db.Date
+  due_date       DateTime         @db.Date
+  subtotal       Decimal          @db.Decimal(12, 2)
+  tax_amount     Decimal?         @default(0.00) @db.Decimal(12, 2)
+  total_amount   Decimal          @db.Decimal(12, 2)
+  status         invoices_status? @default(DRAFT)
+  created_at     DateTime?        @default(now()) @db.Timestamp(0)
+  invoice_items  invoice_items[]
+  clients        clients          @relation(fields: [client_id], references: [id], onUpdate: NoAction, map: "invoices_ibfk_1")
+  payments       payments[]
+
+  @@index([client_id], map: "client_id")
+}
+
+model leaves {
+  id          BigInt         @id @default(autoincrement()) @db.UnsignedBigInt
+  guard_id    BigInt         @db.UnsignedBigInt
+  start_date  DateTime       @db.Date
+  end_date    DateTime       @db.Date
+  reason      String         @db.Text
+  status      leaves_status? @default(PENDING)
+  reviewed_by BigInt?        @db.UnsignedBigInt
+  reviewed_at DateTime?      @db.DateTime(0)
+  created_at  DateTime?      @default(now()) @db.Timestamp(0)
+  guards      guards         @relation(fields: [guard_id], references: [id], onUpdate: NoAction, map: "leaves_ibfk_1")
+  users       users?         @relation(fields: [reviewed_by], references: [id], onUpdate: NoAction, map: "leaves_ibfk_2")
+
+  @@index([guard_id], map: "guard_id")
+  @@index([reviewed_by], map: "reviewed_by")
+}
+
+model notifications {
+  id         BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id    BigInt    @db.UnsignedBigInt
+  title      String    @db.VarChar(150)
+  message    String    @db.Text
+  is_read    Boolean?  @default(false)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_1")
+
+  @@index([user_id, is_read], map: "idx_notifications_user")
+}
+
+model payment_webhook_events {
+  id           BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  event_id     String    @unique(map: "event_id") @db.VarChar(150)
+  event_type   String    @db.VarChar(100)
+  processed    Boolean?  @default(false)
+  received_at  DateTime? @default(now()) @db.Timestamp(0)
+  processed_at DateTime? @db.DateTime(0)
+}
+
+model payments {
+  id                BigInt           @id @default(autoincrement()) @db.UnsignedBigInt
+  invoice_id        BigInt           @db.UnsignedBigInt
+  transaction_id    String?          @db.VarChar(150)
+  razorpay_order_id String?          @unique(map: "razorpay_order_id") @db.VarChar(150)
+  amount            Decimal          @db.Decimal(12, 2)
+  payment_method    String?          @db.VarChar(50)
+  status            payments_status? @default(CREATED)
+  paid_at           DateTime?        @db.DateTime(0)
+  created_at        DateTime?        @default(now()) @db.Timestamp(0)
+  invoices          invoices         @relation(fields: [invoice_id], references: [id], onUpdate: NoAction, map: "payments_ibfk_1")
+
+  @@index([invoice_id], map: "invoice_id")
+}
+
+model salaries {
+  id              BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  guard_id        BigInt            @db.UnsignedBigInt
+  salary_month    DateTime          @db.Date
+  base_salary     Decimal           @db.Decimal(12, 2)
+  overtime_amount Decimal?          @default(0.00) @db.Decimal(12, 2)
+  deductions      Decimal?          @default(0.00) @db.Decimal(12, 2)
+  gross_salary    Decimal           @db.Decimal(12, 2)
+  net_salary      Decimal           @db.Decimal(12, 2)
+  status          salaries_status?  @default(DRAFT)
+  created_at      DateTime?         @default(now()) @db.Timestamp(0)
+  guards          guards            @relation(fields: [guard_id], references: [id], onUpdate: NoAction, map: "salaries_ibfk_1")
+  salary_payments salary_payments[]
+
+  @@unique([guard_id, salary_month], map: "unique_guard_salary_month")
+}
+
+model salary_payments {
+  id                    BigInt                         @id @default(autoincrement()) @db.UnsignedBigInt
+  salary_id             BigInt                         @db.UnsignedBigInt
+  amount                Decimal                        @db.Decimal(12, 2)
+  payment_method        salary_payments_payment_method
+  transaction_reference String?                        @db.VarChar(150)
+  payment_date          DateTime                       @db.DateTime(0)
+  status                salary_payments_status?        @default(PENDING)
+  created_at            DateTime?                      @default(now()) @db.Timestamp(0)
+  salaries              salaries                       @relation(fields: [salary_id], references: [id], onUpdate: NoAction, map: "salary_payments_ibfk_1")
+
+  @@index([salary_id], map: "salary_id")
+}
+
+model shifts {
+  id          BigInt        @id @default(autoincrement()) @db.UnsignedBigInt
+  shift_name  String        @db.VarChar(50)
+  start_time  DateTime      @db.Time(0)
+  end_time    DateTime      @db.Time(0)
+  description String?       @db.Text
+  is_active   Boolean?      @default(true)
+  assignments assignments[]
+}
+
+model sites {
+  id              BigInt        @id @default(autoincrement()) @db.UnsignedBigInt
+  client_id       BigInt        @db.UnsignedBigInt
+  supervisor_id   BigInt?       @db.UnsignedBigInt
+  site_name       String        @db.VarChar(150)
+  address         String        @db.Text
+  required_guards Int?          @default(1) @db.UnsignedInt
+  status          sites_status? @default(ACTIVE)
+  created_at      DateTime?     @default(now()) @db.Timestamp(0)
+  assignments     assignments[]
+  attendance      attendance[]
+  incidents       incidents[]
+  clients         clients       @relation(fields: [client_id], references: [id], onUpdate: NoAction, map: "sites_ibfk_1")
+  supervisors     supervisors?  @relation(fields: [supervisor_id], references: [id], onUpdate: NoAction, map: "sites_ibfk_2")
+
+  @@index([client_id], map: "client_id")
+  @@index([supervisor_id], map: "supervisor_id")
+}
+
+model supervisors {
+  id            BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id       BigInt              @unique(map: "user_id") @db.UnsignedBigInt
+  employee_code String              @unique(map: "employee_code") @db.VarChar(30)
+  joining_date  DateTime            @db.Date
+  status        supervisors_status? @default(ACTIVE)
+  attendance    attendance[]
+  sites         sites[]
+  users         users               @relation(fields: [user_id], references: [id], onUpdate: NoAction, map: "supervisors_ibfk_1")
+}
+
+model users {
+  id            BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  name          String          @db.VarChar(100)
+  email         String          @unique(map: "email") @db.VarChar(150)
+  password_hash String          @db.VarChar(255)
+  phone         String?         @db.VarChar(15)
+  role          users_role
+  is_active     Boolean?        @default(true)
+  created_at    DateTime?       @default(now()) @db.Timestamp(0)
+  updated_at    DateTime?       @default(now()) @db.Timestamp(0)
+  assignments   assignments[]
+  audit_logs    audit_logs[]
+  clients       clients?
+  guards        guards?
+  incidents     incidents[]
+  leaves        leaves[]
+  notifications notifications[]
+  supervisors   supervisors?
+}
+
+enum salary_payments_payment_method {
+  BANK_TRANSFER
+  UPI
+  CASH
+  OTHER
+}
+
+enum documents_verification_status {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum supervisors_status {
+  ACTIVE
+  INACTIVE
+}
+
+enum incidents_severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum leaves_status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum users_role {
+  SUPER_ADMIN
+  ADMIN
+  SUPERVISOR
+  GUARD
+  CLIENT
+}
+
+enum incidents_status {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  CLOSED
+}
+
+enum payments_status {
+  CREATED
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum salary_payments_status {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum sites_status {
+  ACTIVE
+  INACTIVE
+}
+
+enum assignments_status {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum attendance_status {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  ON_LEAVE
+}
+
+enum clients_status {
+  ACTIVE
+  INACTIVE
+}
+
+enum invoices_status {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum salaries_status {
+  DRAFT
+  APPROVED
+  PARTIALLY_PAID
+  PAID
+}
+
+enum guards_employment_status {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  TERMINATED
+}
