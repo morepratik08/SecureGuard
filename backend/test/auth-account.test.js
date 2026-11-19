@@ -33,6 +33,8 @@ function findUser(where) {
 function queryRows(strings, ...values) {
   const sql = Array.from(strings).join('?');
   const value = values[0];
+  if (sql.includes('GET_LOCK')) return [{ acquired: 1 }];
+  if (sql.includes('RELEASE_LOCK')) return [{ released: 1 }];
   if (sql.includes('LOWER(TRIM(email))')) {
     return state.users.filter((user) => user.email.trim().toLowerCase() === value).slice(0, 2).map(({ id }) => ({ id }));
   }
@@ -100,6 +102,7 @@ function makeTransactionClient() {
     guards: table('guards'),
     supervisors: table('supervisors'),
     clients: table('clients'),
+    audit_logs: table('audit_logs'),
   };
 }
 
@@ -164,6 +167,7 @@ before(async () => {
     ],
     supervisors: [{ user_id: 7n, employee_code: 's-old', joining_date: new Date('2025-01-01') }],
     clients: [],
+    audit_logs: [],
   };
 
   prisma.users.findUnique = async ({ where, select }) => project(findUser(where) ?? {}, select);

@@ -4,7 +4,8 @@ import { HttpError } from '../utils/http-error.js';
 
 export async function createAccountController(req, res) {
   const input = validateAccountCreation(req.body, req.user.role);
-  const user = await createAccount(input);
+  const auditActorId = ['GUARD', 'SUPERVISOR', 'CLIENT'].includes(input.role) ? req.user.id : undefined;
+  const user = await createAccount(input, { auditActorId });
   res.status(201).json({ success: true, user });
 }
 

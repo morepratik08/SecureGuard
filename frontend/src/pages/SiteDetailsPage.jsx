@@ -1,0 +1,19 @@
+import { useEffect, useState } from 'react'
+import { ArrowLeft, Pencil } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
+import { getApiErrorMessage } from '../api/client.js'
+import { getSite, updateSiteStatus } from '../api/clientSiteApi.js'
+import { useAuth } from '../auth/useAuth.js'
+
+export default function SiteDetailsPage() {
+  const { siteId } = useParams(); const { user } = useAuth(); const admin = ['ADMIN', 'SUPER_ADMIN'].includes(user.role)
+  const [site, setSite] = useState(null); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [confirm, setConfirm] = useState(false); const [saving, setSaving] = useState(false)
+  useEffect(() => { let active = true; getSite(siteId).then((value) => { if (active) setSite(value) }).catch((err) => { if (active) setError(getApiErrorMessage(err, 'Unable to load site.')) }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [siteId])
+  async function toggle() { setSaving(true); try { const next = site.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'; setSite(await updateSiteStatus(site.id, next)); setConfirm(false) } catch (err) { setError(getApiErrorMessage(err, 'Unable to update site status.')) } finally { setSaving(false) } }
+  if (loading) return <div className="panel directory-message">Loading site…</div>
+  if (!site) return <div className="directory-alert" role="alert">{error || 'Site not found.'}</div>
+  return <main className="directory-page"><Link className="back-link" to="/sites"><ArrowLeft size={16}/>Site Management</Link>{error && <div className="directory-alert" role="alert">{error}</div>}<header className="directory-heading"><div><p className="eyebrow">SITE DETAILS</p><h2>{site.site_name}</h2><p>{site.address}</p></div><div className="directory-heading-actions"><span className={`status-pill status-${site.status.toLowerCase()}`}>{site.status}</span>{admin && <><Link className="secondary-button" to={`/sites/${site.id}/edit`}><Pencil size={16}/>Edit</Link><button className="secondary-button" onClick={() => setConfirm(true)}>{site.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}</button></>}</div></header>
+    <section className="directory-detail-grid"><article className="panel directory-detail-card"><h3>Site information</h3><dl><dt>Address</dt><dd>{site.address}</dd><dt>Client</dt><dd><Link to={`/clients/${site.client.id}`}>{site.client.company_name}</Link></dd><dt>Supervisor</dt><dd>{site.supervisor?.name || 'Unassigned'}</dd><dt>Required guards</dt><dd>{site.required_guards}</dd><dt>Active guards</dt><dd>{site.active_guard_count}</dd><dt>Created</dt><dd>{site.created_at ? new Date(site.created_at).toLocaleDateString() : '—'}</dd></dl></article><article className="panel directory-detail-card"><h3>Assigned guards <span className="detail-count">{site.guards?.length ?? site.active_guard_count}</span></h3>{site.guards?.length ? <ul className="related-list">{site.guards.map((guard) => <li key={guard.id}><span><strong>{guard.name}</strong><small>{guard.employee_code}</small></span></li>)}</ul> : <p className="directory-empty">{site.active_guard_count ? 'Guard identities are restricted for this role.' : 'No active guard assignments.'}</p>}</article></section>
+    {confirm && <div className="dialog-backdrop"><section className="panel directory-confirm" role="dialog" aria-modal="true"><h3>{site.status === 'ACTIVE' ? 'Deactivate this site?' : 'Activate this site?'}</h3><p>Changing site status does not delete or rewrite assignments and attendance history.</p><div className="directory-actions"><button className="secondary-button" disabled={saving} onClick={() => setConfirm(false)}>Cancel</button><button className="primary-button" disabled={saving} onClick={toggle}>{saving ? 'Saving…' : 'Confirm'}</button></div></section></div>}
+  </main>
+}

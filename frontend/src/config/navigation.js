@@ -1,6 +1,6 @@
 import {
   Activity, BriefcaseBusiness, CalendarDays, ClipboardCheck, FileBarChart,
-  FileText, LayoutDashboard, MapPin, Settings, Shield, Siren, Users,
+  ContactRound, FileText, LayoutDashboard, MapPin, Settings, Shield, Siren, Users,
   UserRoundCog, WalletCards,
 } from 'lucide-react'
 
@@ -13,9 +13,10 @@ const management = ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR']
 export const NAV_ITEMS = [
   { label: 'Overview', path: '/', icon: LayoutDashboard, roles: ROLES },
   { label: 'Employees', path: '/employees', icon: Users, roles: management },
+  { label: 'My Profile', path: '/my-profile', icon: ContactRound, roles: ['SUPERVISOR', 'GUARD'] },
   { label: 'Supervisors', path: '/supervisors', icon: UserRoundCog, roles: allAdmins },
-  { label: 'Clients', path: '/clients', icon: BriefcaseBusiness, roles: allAdmins },
-  { label: 'Sites', path: '/sites', icon: MapPin, roles: operations.concat('CLIENT') },
+  { label: 'Client Management', path: '/clients', icon: BriefcaseBusiness, roles: allAdmins.concat('CLIENT') },
+  { label: 'Site Management', path: '/sites', icon: MapPin, roles: operations.concat('CLIENT') },
   { label: 'Assignments', path: '/assignments', icon: ClipboardCheck, roles: operations.concat('GUARD', 'CLIENT') },
   { label: 'Shifts', path: '/shifts', icon: CalendarDays, roles: operations.concat('GUARD') },
   { label: 'Attendance', path: '/attendance', icon: Activity, roles: operations.concat('GUARD') },

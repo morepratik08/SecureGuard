@@ -12,7 +12,11 @@ export default function AppShell() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const currentPage = useMemo(
-    () => NAV_ITEMS.find((item) => item.path === location.pathname) ?? NAV_ITEMS[0],
+    () => NAV_ITEMS.find((item) => item.path === location.pathname)
+      ?? (location.pathname.startsWith('/employees/') ? NAV_ITEMS.find((item) => item.path === '/employees') : null)
+      ?? (location.pathname.startsWith('/clients/') ? NAV_ITEMS.find((item) => item.path === '/clients') : null)
+      ?? (location.pathname.startsWith('/sites/') ? NAV_ITEMS.find((item) => item.path === '/sites') : null)
+      ?? NAV_ITEMS[0],
     [location.pathname],
   )
 

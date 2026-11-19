@@ -34,26 +34,53 @@ function mapUniqueConstraintError(error) {
   throw error;
 }
 
-export async function createAccount(input) {
+export async function createAccount(input, { auditActorId } = {}) {
   const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
   const normalizedEmail = normalizeEmail(input.email);
 
   try {
     return await prisma.$transaction(async (tx) => {
+      const employeeCode = auditActorId && ['GUARD', 'SUPERVISOR'].includes(input.role)
+        ? profileCode(input).toUpperCase()
+        : null;
+      const employeeCodeLock = employeeCode ? `secureguard:employee-code:${employeeCode}` : null;
+      let employeeCodeLockAcquired = false;
+
+      if (employeeCodeLock) {
+        const lockRows = await tx.$queryRaw`SELECT GET_LOCK(${employeeCodeLock}, 10) AS acquired`;
+        employeeCodeLockAcquired = Number(lockRows[0]?.acquired) === 1;
+        if (!employeeCodeLockAcquired) {
+          throw new HttpError(503, 'Employee code is being provisioned. Please retry shortly.');
+        }
+      }
+
+      try {
       const existingEmail = await tx.$queryRaw`SELECT id FROM users WHERE LOWER(TRIM(email)) = ${normalizedEmail} LIMIT 1`;
       if (existingEmail.length > 0) {
         throw new HttpError(409, 'An account with the provided email or employee code already exists.');
       }
 
       if (input.role === 'GUARD') {
-        const matchingCode = await tx.$queryRaw`SELECT id FROM guards WHERE UPPER(TRIM(employee_code)) = ${profileCode(input)} LIMIT 1`;
+        const matchingCode = await tx.$queryRaw`SELECT id FROM guards WHERE UPPER(TRIM(employee_code)) = ${profileCode(input)} LIMIT 1 FOR UPDATE`;
         if (matchingCode.length > 0) {
           throw new HttpError(409, 'An account with the provided email or employee code already exists.');
         }
+        if (auditActorId) {
+          const matchingSupervisorCode = await tx.$queryRaw`SELECT id FROM supervisors WHERE UPPER(TRIM(employee_code)) = ${profileCode(input)} LIMIT 1 FOR UPDATE`;
+          if (matchingSupervisorCode.length > 0) {
+            throw new HttpError(409, 'An account with the provided email or employee code already exists.');
+          }
+        }
       } else if (input.role === 'SUPERVISOR') {
-        const matchingCode = await tx.$queryRaw`SELECT id FROM supervisors WHERE UPPER(TRIM(employee_code)) = ${profileCode(input)} LIMIT 1`;
+        const matchingCode = await tx.$queryRaw`SELECT id FROM supervisors WHERE UPPER(TRIM(employee_code)) = ${profileCode(input)} LIMIT 1 FOR UPDATE`;
         if (matchingCode.length > 0) {
           throw new HttpError(409, 'An account with the provided email or employee code already exists.');
+        }
+        if (auditActorId) {
+          const matchingGuardCode = await tx.$queryRaw`SELECT id FROM guards WHERE UPPER(TRIM(employee_code)) = ${profileCode(input)} LIMIT 1 FOR UPDATE`;
+          if (matchingGuardCode.length > 0) {
+            throw new HttpError(409, 'An account with the provided email or employee code already exists.');
+          }
         }
       }
 
@@ -70,6 +97,7 @@ export async function createAccount(input) {
       });
 
       const profile = input.profile;
+      let auditEntityId = user.id;
       if (input.role === 'SUPERVISOR') {
         await tx.supervisors.create({
           data: {
@@ -89,12 +117,34 @@ export async function createAccount(input) {
           },
         });
       } else if (input.role === 'CLIENT') {
-        await tx.clients.create({
+        const client = await tx.clients.create({
           data: { ...profile, user_id: user.id },
+          select: { id: true },
+        });
+        auditEntityId = client.id;
+      }
+
+      if (auditActorId && ['GUARD', 'SUPERVISOR', 'CLIENT'].includes(input.role)) {
+        await tx.audit_logs.create({
+          data: {
+            user_id: parseUserId(auditActorId),
+            action: input.role === 'CLIENT' ? 'CLIENT_CREATED' : 'EMPLOYEE_CREATED',
+            entity_type: input.role === 'CLIENT' ? 'CLIENT' : 'EMPLOYEE',
+            entity_id: auditEntityId,
+            details: input.role === 'CLIENT'
+              ? { role: input.role, company_name: profile.company_name }
+              : { role: input.role, employee_code: profile.employee_code },
+          },
         });
       }
 
       return safeUser(user);
+      } finally {
+        if (employeeCodeLockAcquired) {
+          const released = await tx.$queryRaw`SELECT RELEASE_LOCK(${employeeCodeLock}) AS released`;
+          if (Number(released[0]?.released) !== 1) throw new Error('Employee-code lock could not be released.');
+        }
+      }
     });
   } catch (error) {
     mapUniqueConstraintError(error);
