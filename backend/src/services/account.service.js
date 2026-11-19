@@ -16,7 +16,7 @@ function safeUser(user) {
   };
 }
 
-function nextAuthVersion(updatedAt) {
+export function nextAuthVersion(updatedAt) {
   const previousMs = updatedAt instanceof Date ? updatedAt.getTime() : 0;
   const nowMs = Math.floor(Date.now() / 1000) * 1000;
   // users.updated_at is TIMESTAMP(0); advance at least one whole second to avoid version collisions.

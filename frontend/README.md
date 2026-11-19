@@ -1,16 +1,31 @@
-# React + Vite
+# SecureGuard frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React, Vite, Tailwind CSS, React Router, Axios and Recharts frontend for SecureGuard workforce operations.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```powershell
+cd frontend
+Copy-Item .env.example .env.local
+npm install
+npm run dev
+```
 
-## React Compiler
+Set `VITE_API_BASE_URL` in `.env.local` if the backend is not at `http://localhost:5000/api`. The current backend provides login, `/api/auth/me`, password change, account provisioning, and `/api/health`; the dashboard and workforce modules do not yet have data endpoints. The dashboard therefore shows empty states instead of sample operational figures.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Checks
 
-## Expanding the ESLint configuration
+```powershell
+npm run lint
+npm run build
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Authentication storage
+
+The backend currently returns the JWT in the login response body. The frontend keeps it in JavaScript memory and sends it as a Bearer token. It is not persisted to local storage or represented as an HttpOnly cookie; a page reload ends the frontend session and requires another login.
+
+For production browser sessions, update the backend to issue and clear a `Secure`, `HttpOnly`, appropriately `SameSite` cookie, accept cookie-based authentication, and add CSRF protections. Configure CORS for the exact frontend origin with credentials, then set Axios `withCredentials`. Cookie issuance and logout behavior must be implemented and tested by the backend before switching the client.
+
+## Backend work still needed for the dashboard
+
+Add authenticated, role-scoped summary endpoints for guard totals, active sites, today's attendance, pending leave, attendance chart series, employee distribution, recent activity, and incidents. Enforce role access and tenant/client scope in the backend. Then add the endpoint adapter to `src/api/dashboardApi.js`; the UI is already separated from its transport layer and accepts real chart data without embedding fake records.

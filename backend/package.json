@@ -7,7 +7,12 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "node test/auth-account.test.js"
+    "bootstrap": "node scripts/create-super-admin.js",
+    "reset": "node scripts/reset-super-admin-password.js",
+    "reset:super-admin": "node scripts/reset-super-admin-password.js",
+    "test": "node test/auth-account.test.js",
+    "test:integration": "node test/integration-url-safety.test.js && node test/auth-account.integration.test.js",
+    "test:integration:safety": "node test/integration-url-safety.test.js"
   },
   "keywords": [],
   "author": "",
