@@ -49,7 +49,7 @@ function seed() {
       { id: 54n, shift_name: 'Early', start_time: time('02:00:00'), end_time: time('10:00:00'), is_active: true, description: null },
       { id: 55n, shift_name: 'Disabled', start_time: time('09:00:00'), end_time: time('17:00:00'), is_active: false, description: null },
     ],
-    assignments: [], audit_logs: [],
+    assignments: [], leaves: [], audit_logs: [],
   };
 }
 function profileForUser(role, id) {
@@ -180,6 +180,10 @@ function txClient() {
   return {
     $queryRaw: async (strings, ...values) => raw(strings, ...values),
     assignments,
+    leaves: { findFirst: async ({ where }) => state.leaves.find((leave) => leave.guard_id === where.guard_id
+      && where.status === 'APPROVED' && leave.status === 'APPROVED'
+      && leave.end_date >= where.end_date.gte
+      && (!where.start_date || leave.start_date <= where.start_date.lte)) ?? null },
     shifts,
     users: { findUnique: async ({ where, select }) => project(authUser(where.id), select) },
     audit_logs: { create: async ({ data }) => { const row = { id: BigInt(state.audit_logs.length + 1), ...data }; state.audit_logs.push(row); return row; } },
@@ -241,6 +245,9 @@ test('assignment validation rejects ineligible records and enforces daily, adjac
   const invalidRange = await request('POST', '/api/assignments', { body: assignmentBody({ guard_id: '34', site_id: '42', start_date: '2026-12-03', end_date: '2026-12-02' }) }); assert.equal(invalidRange.response.status, 400);
   const overnight = await request('POST', '/api/assignments', { body: assignmentBody({ guard_id: '34', site_id: '42', shift_id: '53' }) }); assert.equal(overnight.response.status, 201);
   const nextDayOverlap = await request('POST', '/api/assignments', { body: assignmentBody({ guard_id: '34', site_id: '42', shift_id: '54', start_date: shiftDayForTest(today, 1), end_date: shiftDayForTest(today, 1) }) }); assert.equal(nextDayOverlap.response.status, 409);
+  const leaveStart = shiftDayForTest(today, 4); const leaveEnd = shiftDayForTest(today, 5);
+  state.leaves.push({ guard_id: 34n, status: 'APPROVED', start_date: new Date(`${leaveStart}T00:00:00.000Z`), end_date: new Date(`${leaveEnd}T00:00:00.000Z`) });
+  const approvedLeaveConflict = await request('POST', '/api/assignments', { body: assignmentBody({ guard_id: '34', site_id: '42', shift_id: '51', start_date: leaveStart, end_date: leaveEnd }) }); assert.equal(approvedLeaveConflict.response.status, 409);
   const list = await request('GET', `/api/assignments?from=${today}&to=${today}`); assert.equal(list.response.status, 200); assert.ok(list.body.pagination.total >= 3);
   const schedule = await request('GET', `/api/schedule?from=${today}&to=${today}`); assert.equal(schedule.response.status, 200); assert.ok(schedule.body.assignments.length >= 3);
 });

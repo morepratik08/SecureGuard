@@ -140,6 +140,19 @@ async function lockSiteAndShiftAndCheck(tx, { siteId, shiftId }) {
   return currentShift;
 }
 
+async function assertNoApprovedLeave(tx, { guardId, startDate, endDate }) {
+  const leave = await tx.leaves.findFirst({
+    where: {
+      guard_id: guardId,
+      status: 'APPROVED',
+      end_date: { gte: startDate },
+      ...(endDate ? { start_date: { lte: endDate } } : {}),
+    },
+    select: { id: true },
+  });
+  if (leave) throw new HttpError(409, 'The guard has approved leave during this assignment period.');
+}
+
 async function activeAssignmentsForUpdate(tx, guardId) {
   // Locking read (not a repeatable-read snapshot) is paired with the guard-row lock.
   // Competing requests for this guard serialize, then observe the prior committed insert.
@@ -170,6 +183,7 @@ export async function createAssignment({ actorId, input }) {
   try {
     const created = await prisma.$transaction(async (tx) => {
       await lockGuardAndCheck(tx, input.guard_id);
+      await assertNoApprovedLeave(tx, { guardId: input.guard_id, startDate: input.start_date, endDate: input.end_date });
       const shift = await lockSiteAndShiftAndCheck(tx, { siteId: input.site_id, shiftId: input.shift_id });
       const candidate = { start_date: input.start_date, end_date: input.end_date, shift };
       assertNoConflict(await activeAssignmentsForUpdate(tx, input.guard_id), candidate);
@@ -205,6 +219,7 @@ export async function updateAssignment({ actorId, assignmentId, input }) {
       const startDate = input.start_date ?? current.start_date;
       const endDate = Object.hasOwn(input, 'end_date') ? input.end_date : current.end_date;
       if (endDate && endDate < startDate) throw new HttpError(400, 'End date must be on or after start date.');
+      await assertNoApprovedLeave(tx, { guardId, startDate, endDate });
       const shift = await lockSiteAndShiftAndCheck(tx, { siteId, shiftId });
       const conflicts = await activeAssignmentsForUpdate(tx, guardId);
       assertNoConflict(conflicts, { start_date: startDate, end_date: endDate, shift }, id);

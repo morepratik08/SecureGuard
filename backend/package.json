@@ -10,9 +10,10 @@
     "bootstrap": "node scripts/create-super-admin.js",
     "reset": "node scripts/reset-super-admin-password.js",
     "reset:super-admin": "node scripts/reset-super-admin-password.js",
-    "test": "node test/auth-account.test.js && node test/employee.test.js && node test/client-site.test.js && node test/phase4.test.js",
+    "test": "node test/auth-account.test.js && node test/employee.test.js && node test/client-site.test.js && node test/phase4.test.js && node test/phase5.test.js",
     "test:integration": "node test/integration-url-safety.test.js && node test/auth-account.integration.test.js",
     "test:phase4:integration": "node test/integration-url-safety.test.js && node test/phase4.integration.test.js",
+    "test:phase5:integration": "node test/integration-url-safety.test.js && node test/phase5.integration.test.js",
     "test:integration:safety": "node test/integration-url-safety.test.js"
   },
   "keywords": [],
