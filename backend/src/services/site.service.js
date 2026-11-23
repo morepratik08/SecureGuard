@@ -111,7 +111,11 @@ export async function updateSite({ actorId, siteId, input }) {
   if (!id) throw new HttpError(400, 'A valid site ID is required.');
   try {
     await prisma.$transaction(async (tx) => {
-      const current = await tx.sites.findUnique({ where: { id }, select: { id: true, client_id: true, supervisor_id: true, site_name: true, address: true, required_guards: true, status: true } });
+      const lockedSites = await tx.$queryRaw`
+        SELECT id, client_id, supervisor_id, site_name, address, required_guards, status
+        FROM sites WHERE id = ${id} FOR UPDATE
+      `;
+      const current = lockedSites[0];
       if (!current) throw new HttpError(404, 'Site not found.');
       const clientChanged = input.client_id !== undefined && input.client_id !== current.client_id;
       const supervisorChanged = Object.hasOwn(input, 'supervisor_id') && input.supervisor_id !== current.supervisor_id;
@@ -145,7 +149,8 @@ export async function updateSiteStatus({ actorId, siteId, status }) {
   const id = parseAccountId(siteId);
   if (!id) throw new HttpError(400, 'A valid site ID is required.');
   await prisma.$transaction(async (tx) => {
-    const current = await tx.sites.findUnique({ where: { id }, select: { status: true } });
+    const locked = await tx.$queryRaw`SELECT id, status FROM sites WHERE id = ${id} FOR UPDATE`;
+    const current = locked[0];
     if (!current) throw new HttpError(404, 'Site not found.');
     if (status === 'INACTIVE') {
       const activeAssignments = await tx.assignments.count({ where: { site_id: id, status: 'ACTIVE' } });

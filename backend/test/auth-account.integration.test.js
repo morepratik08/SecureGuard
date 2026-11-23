@@ -254,9 +254,14 @@ test('real MySQL account provisioning, role boundaries, uniqueness, FKs and roll
 
   const orphanProbeCode = uniqueEmployeeCode('FK-PROBE');
   orphanGuardCodes.add(orphanProbeCode);
+  // The schema uses UNSIGNED BIGINT, but Prisma's BigInt argument encoding is
+  // signed 64-bit. Keep this valid for Prisma and confirm it cannot refer to
+  // an existing user before using it to probe the foreign-key constraint.
+  const nonexistentUserId = 9_223_372_036_854_775_807n;
+  assert.equal(await prisma.users.findUnique({ where: { id: nonexistentUserId }, select: { id: true } }), null);
   await assert.rejects(prisma.guards.create({
     data: {
-      user_id: 18_446_744_073_709_551_615n,
+      user_id: nonexistentUserId,
       employee_code: orphanProbeCode,
       joining_date: new Date('2025-01-15T00:00:00.000Z'),
       base_salary: '25000.00',

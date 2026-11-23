@@ -65,6 +65,10 @@ function queryRaw(strings, ...values) {
   const sql = Array.from(strings).join('?');
   if (sql.includes('GET_LOCK')) return [{ acquired: 1 }];
   if (sql.includes('RELEASE_LOCK')) return [{ released: 1 }];
+  if (sql.includes('FROM sites WHERE id')) {
+    const site = state.sites.find((row) => row.id === values[0]);
+    return site ? [{ ...site }] : [];
+  }
   if (sql.includes('LOWER(TRIM(email))')) return state.users.filter((row) => row.email.trim().toLowerCase() === values[0].toLowerCase() && row.id !== values[1]).slice(0, 1).map(({ id }) => ({ id }));
   return [];
 }

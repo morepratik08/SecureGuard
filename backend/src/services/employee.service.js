@@ -412,6 +412,13 @@ export async function updateEmployeeStatus({ actorId, actorRole, employeeId, sta
     const isActive = status === 'ACTIVE' || status === 'ON_LEAVE';
 
     if (user.role === 'GUARD') {
+      if (status !== 'ACTIVE') {
+        await tx.$queryRaw`SELECT id FROM guards WHERE id = ${profile.id} FOR UPDATE`;
+        const activeAssignments = await tx.$queryRaw`SELECT id FROM assignments WHERE guard_id = ${profile.id} AND status = 'ACTIVE' FOR UPDATE`;
+        if (activeAssignments.length > 0) {
+          throw new HttpError(409, 'End active guard assignments before changing this guard status.');
+        }
+      }
       await tx.guards.update({ where: { user_id: id }, data: { employment_status: status } });
     } else {
       await tx.supervisors.update({ where: { user_id: id }, data: { status } });

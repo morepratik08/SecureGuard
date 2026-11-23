@@ -21,7 +21,7 @@ function safeClient(client, { includeRelations = false } = {}) {
       sites: (client.sites ?? []).map((site) => ({
         id: site.id.toString(), site_name: site.site_name, address: site.address,
         status: site.status ?? 'ACTIVE', required_guards: site.required_guards,
-        supervisor: site.supervisors ? { id: site.supervisors.id.toString(), name: site.supervisors.users.name } : null,
+        supervisor: site.supervisors ? { id: site.supervisors.users.id.toString(), profile_id: site.supervisors.id.toString(), name: site.supervisors.users.name } : null,
         active_guard_count: new Set((site.assignments ?? []).map((assignment) => assignment.guard_id.toString())).size,
         created_at: site.created_at?.toISOString() ?? null,
       })),
@@ -44,7 +44,7 @@ function clientDetailsInclude() {
     sites: {
       orderBy: { id: 'desc' },
       include: {
-        supervisors: { include: { users: { select: { name: true } } } },
+        supervisors: { include: { users: { select: { id: true, name: true } } } },
         assignments: { where: { status: 'ACTIVE' }, select: { guard_id: true } },
       },
     },
