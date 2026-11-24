@@ -16,6 +16,12 @@ export default function AppShell() {
       ?? (location.pathname.startsWith('/employees/') ? NAV_ITEMS.find((item) => item.path === '/employees') : null)
       ?? (location.pathname.startsWith('/clients/') ? NAV_ITEMS.find((item) => item.path === '/clients') : null)
       ?? (location.pathname.startsWith('/sites/') ? NAV_ITEMS.find((item) => item.path === '/sites') : null)
+      ?? (location.pathname.startsWith('/assignments/') ? NAV_ITEMS.find((item) => item.path === '/assignments') : null)
+      ?? (location.pathname.startsWith('/shifts/') ? NAV_ITEMS.find((item) => item.path === '/shifts') : null)
+      ?? (location.pathname.startsWith('/attendance/') ? NAV_ITEMS.find((item) => item.path === '/attendance') : null)
+      ?? (location.pathname.startsWith('/leaves/') ? NAV_ITEMS.find((item) => item.path === '/leaves') : null)
+      ?? (location.pathname.startsWith('/incidents/') ? NAV_ITEMS.find((item) => item.path === '/incidents') : null)
+      ?? (location.pathname.startsWith('/documents/') ? NAV_ITEMS.find((item) => item.path === '/documents') : null)
       ?? NAV_ITEMS[0],
     [location.pathname],
   )

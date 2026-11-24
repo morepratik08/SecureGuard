@@ -10,6 +10,8 @@ import assignmentRoutes from './assignment.routes.js';
 import scheduleRoutes from './schedule.routes.js';
 import attendanceRoutes from './attendance.routes.js';
 import leaveRoutes from './leave.routes.js';
+import incidentRoutes from './incident.routes.js';
+import documentRoutes from './document.routes.js';
 
 const router = Router();
 
@@ -23,6 +25,8 @@ router.use('/assignments', assignmentRoutes);
 router.use('/schedule', scheduleRoutes);
 router.use('/attendance', attendanceRoutes);
 router.use('/leaves', leaveRoutes);
+router.use('/incidents', incidentRoutes);
+router.use('/documents', documentRoutes);
 router.use(healthRoutes);
 
 export default router;
